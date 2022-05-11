@@ -3,20 +3,62 @@ import binascii  # 二进制和ASCII码之间的转换
 import Crypto.Random
 from Crypto.PublicKey import RSA
 
+import os
+import hashlib
+
 
 class Student:
     Name = ""
     Credits = 20.0
+    _private_key = ""
+    _public_key = ""
 
-    def __init__(self):
-        # 生成公钥和私钥
-        random = Crypto.Random.new().read
-        self._private_key = RSA.generate(1024, random)
-        self._public_key = self._private_key.publickey()
-        # 利用公钥的ASCII码当作用户名
-        self.Name = binascii.hexlify(self._public_key.exportKey(format="DER")).decode(
-            "ascii"
-        )
+    def __init__(self, stuName):
+        """_summary_: 初始化学生账户
+
+        如果存在账户私钥文件，则导入账户私钥；
+        如果不存在账户私钥文件，则创建新的账户。
+        导入和生成使用Crpyto库中的RSA算法。
+
+        Args:
+            stuName (_type_): 存储学生私钥的文件名
+        """
+        PrivateFile = "%s_Private.pem" % (stuName)
+        if os.path.exists(PrivateFile):
+            self._private_key = self.import_Account(PrivateFile)
+        else:
+            random = Crypto.Random.new().read
+            # 生成私钥
+            self._private_key = RSA.generate(1024, random)  
+            self.export_Account(PrivateFile,self._private_key)
+            
+
+        publickFile = "%s_Public.pem" % (stuName)
+        if os.path.exists(publickFile):
+            self._public_key = self.import_Account(publickFile)
+        else:
+            # 生成公钥
+            self._public_key = self._private_key.publickey() 
+            self.export_Account(self._public_key)
+
+        #计算出账户
+        str1 = binascii.hexlify(self._public_key.exportKey(format='DER')).decode('ascii')
+        str2 = hashlib.sha256(str1.encode('utf-8')).hexdigest()
+        str3 = hashlib.sha256(str2.encode('utf-8')).hexdigest()        
+        self.Name = str3
+        print("Account is ready: %s" % (self.Name))
+        
+    def export_Account(self, accountNamePemStr,key):
+        privatePemStr = key.exportKey()  
+        with open(accountNamePemStr, "wb") as f:
+            f.write(privatePemStr)
+            f.close()
+    
+    def import_Account(self, key):
+        with open(key, "rb") as f:
+            publicPemStr = f.read()
+            key = Crypto.PublicKey.RSA.importKey(publicPemStr)
+        return key
 
 
 class Transaction:
@@ -27,12 +69,12 @@ class Transaction:
             self.time = datetime.datetime.now()
             print("Transaction finished at %s" % (self.time))
         else:
-            print("You need much more money!Transaction failed!!")
+            print("You need more money!Transaction failed!!")
 
 
 def main():
-    StuA = Student()
-    StuB = Student()
+    StuA = Student("A")
+    StuB = Student("B")
     tran = Transaction(StuA, StuB, 10)
 
     print("Student: %s has %f credits" % (StuA.Name, StuA.Credits))
