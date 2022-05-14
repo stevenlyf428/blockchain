@@ -14,6 +14,7 @@ import base64
 import time
 class Student:
     Name = ''
+    address = ''
     Credits = 20.0
     private_key = '' #修改为可以外部访问
     public_key = ''  #修改为可以外部访问
@@ -51,12 +52,12 @@ class Student:
         str2 = binascii.hexlify(h1.digest()).decode('utf-8')
         h2 = Crypto.Hash.SHA256.new(str2.encode('utf-8'))
         str3 = binascii.hexlify(h2.digest()).decode('utf-8')
-        self.Name = str3.upper()
-        print("Account is ready: %s" % (self.Name))
+        self.address = str3.upper()
+        print("Account is ready: %s" % (self.address))
 
 class Miner:
     #矿工，负责验证交易，并把验证通过的交易记录到账本中
-    def VerifyTransaction(self):
+    def VerifyTransaction(self,TransactionList):
         #验证TransactionList中的交易记录，如果正确则保存到交易记录账本中
         rstValue = False
         for str in TransactionList:
@@ -83,7 +84,8 @@ class Miner:
                 if rstValue:
                     self.TransactionSave(str + '\n\n')
                     
-                TransactionList.remove(str)  #存在bug，不能在该处进行删除。可以在遍历完成后，一并清空处理
+                # TransactionList.remove(str)  #存在bug，不能在该处进行删除。可以在遍历完成后，一并清空处理
+        TransactionList = []
         return 
 
     def TransactionSave(self, tranStr): #存储交易信息
@@ -133,6 +135,25 @@ class Transaction:
         str3 = base64.b32encode(str2).decode('utf-8')
         return str3
       
+def GetAccountCredit(address=''):
+    f = open(txtFileName, "r")
+    tranStr = f.read()
+    f.close()
+    strs = tranStr.split('\n\n')
+    rstValue = 0
+    for str in strs:
+        if len(str) > 0:
+            list1 = str.split(',')
+            sender = list1[0].split(":")[1]
+            recipient = list1[1].split(":")[1]
+            valueStr = list1[2].split(":")[1]
+            timestampStr = list1[3].split(":")[1]
+            signStr = list1[4].split(":")[1]
+            pubkey = list1[5].split(":")[1]
+            if address == recipient:
+                rstValue += float(valueStr)
+    print("账户:%s 的余额为:%.8f" % (address,rstValue))
+    return rstValue
 
 def main():
     StuA = Student("A")
@@ -144,7 +165,9 @@ def main():
     # print("Student: %s has %f credits" % (StuA.Name, StuA.Credits))
     # print("Student: %s has %f credits" % (StuB.Name, StuB.Credits))
     minerA = Miner()
-    minerA.VerifyTransaction()
+    minerA.VerifyTransaction(TransactionList)
+    
+    GetAccountCredit(StuB.address)
 
 
 if __name__ == "__main__":
